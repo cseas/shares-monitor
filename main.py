@@ -4,22 +4,58 @@
 # Testcase: 'https://www.moneyam.com/share-list_T.html'
 
 maxPages = 100 # Maximum number of pages that the crawler should crawl
-maxDepth = 10 # Max depth that the crawler should search for a particular link
+maxDepth = 1 # Max depth that the crawler should search for a particular link
 seed = 'https://www.moneyam.com/share-list_T.html'
+
+# save html source to a file for offline operations
+def save_offline(html_source, url, isSubPage):
+	if isSubPage:
+		start_quote = url.find('price/')
+		start_quote += 6
+
+		end_quote = url.find('/', start_quote)
+
+		url = url[start_quote : end_quote]
+		
+		filename = str("pages/" + url + ".html")
+
+		f = open(filename, 'w', encoding='utf-8')
+		f.write(html_source)
+		f.close()
 
 # get source text url as return value
 def get_page(url): 
 	try: 
-		import urllib.request
-		return urllib.request.urlopen(url).read().decode("utf8")
-	except: return
+		# import urllib.request
+		# return urllib.request.urlopen(url).read().decode("utf8")
+		from selenium import webdriver
+		browser = webdriver.Firefox()
+
+		isSubPage = False
+		if url.startswith('/'):
+			isSubPage = True
+			url = str("https://www.moneyam.com" + url)
+
+		print("Crawling ", url)
+		print(isSubPage)
+
+		browser.get(url)
+		html_source = browser.page_source
+		browser.quit()
+
+		save_offline(html_source, url, isSubPage)
+		
+		return html_source
+	except:
+		browser.quit()
+		return
 
 # return link url and get its ending position
 def get_next_target(page):
 	if page is None:
 		return None, 0
 
-	start_link = page.find('<a href=')
+	start_link = page.find('<a href="/shareprice')
 
 	# If link sequence is not found
 	if start_link == -1:
@@ -50,6 +86,7 @@ def union(p,q):
 		if i not in p:
 			p.append(i)
 
+
 # crawl seed page for links recursively
 def crawl_web(seed, maxPages, maxDepth):
 	tocrawl = [seed] # list of pages left to crawl
@@ -73,7 +110,13 @@ def crawl_web(seed, maxPages, maxDepth):
 	return crawled
 
 # Main program
+import os
+os.system('rm pages/*')
+
 print("\nReachable links:")
 crawled = crawl_web(seed, maxPages, maxDepth)
 for i in crawled:
 	print(i)
+
+
+os.system('python3 collect_data.py')
